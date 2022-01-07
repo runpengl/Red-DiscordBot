@@ -35,6 +35,7 @@ from types import MappingProxyType
 import discord
 from discord.ext import commands as dpy_commands
 from discord.ext.commands import when_mentioned_or
+from discord.ext.commands.view import StringView
 
 from . import Config, i18n, commands, errors, drivers, modlog, bank
 from .cog_manager import CogManager, CogManagerUI
@@ -1509,22 +1510,71 @@ class RedBase(
             self.dispatch("red_api_tokens_update", service, MappingProxyType({}))
 
     async def get_context(self, message, *, cls=commands.Context):
-        return await super().get_context(message, cls=cls)
+        """ Override to allow bot to command to itself. """
+
+        view = StringView(message.content)
+        ctx = cls(prefix=None, view=view, bot=self, message=message)
+
+        prefix = await self.get_prefix(message)
+        invoked_prefix = prefix
+
+        if isinstance(prefix, str):
+            if not view.skip_string(prefix):
+                return ctx
+        else:
+            try:
+                # if the context class' __init__ consumes something from the view this
+                # will be wrong.  That seems unreasonable though.
+                if message.content.startswith(tuple(prefix)):
+                    invoked_prefix = discord.utils.find(view.skip_string, prefix)
+                else:
+                    return ctx
+
+            except TypeError:
+                if not isinstance(prefix, list):
+                    raise TypeError("get_prefix must return either a string or a list of string, "
+                                    "not {}".format(prefix.__class__.__name__))
+
+                # It's possible a bad command_prefix got us here.
+                for value in prefix:
+                    if not isinstance(value, str):
+                        raise TypeError("Iterable command_prefix or list returned from get_prefix must "
+                                        "contain only strings, not {}".format(value.__class__.__name__))
+
+                # Getting here shouldn't happen
+                raise
+
+        if self.strip_after_prefix:
+            view.skip_ws()
+
+        invoker = view.get_word()
+        ctx.invoked_with = invoker
+        ctx.prefix = invoked_prefix
+        ctx.command = self.all_commands.get(invoker)
+        return ctx
+
+    async def invoke(self, ctx):
+        """ Override to allow bot to command to itself. """
+
+        if ctx.command is not None:
+            self.dispatch('command', ctx)
+            try:
+                await ctx.command.invoke(ctx)
+            except discord.ext.commands.errors.CommandError as exc:
+                await ctx.command.dispatch_error(ctx, exc)
+            else:
+                self.dispatch('command_completion', ctx)
+        elif ctx.invoked_with:
+            exc = discord.ext.commands.errors.CommandNotFound('Command "{}" is not found'.format(ctx.invoked_with))
+            self.dispatch('command_error', ctx, exc)
 
     async def process_commands(self, message: discord.Message):
-        """
-        Same as base method, but dispatches an additional event for cogs
-        which want to handle normal messages differently to command
-        messages,  without the overhead of additional get_context calls
-        per cog.
-        """
-        if not message.author.bot:
-            ctx = await self.get_context(message)
-            await self.invoke(ctx)
-        else:
-            ctx = None
+        """ Override to allow bot to respond to other bots. """
 
-        if ctx is None or ctx.valid is False:
+        ctx = await self.get_context(message)
+        await self.invoke(ctx)
+
+        if ctx.valid is False:
             self.dispatch("message_without_command", message)
 
     @staticmethod

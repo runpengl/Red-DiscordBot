@@ -562,7 +562,10 @@ class Requires:
             return False
 
         if self.user_perms is not None:
-            user_perms = ctx.channel.permissions_for(ctx.author)
+            try:
+                user_perms = ctx.channel.permissions_for(ctx.author)
+            except AttributeError:
+                return True
             if user_perms.administrator or user_perms >= self.user_perms:
                 return True
 
@@ -589,15 +592,23 @@ class Requires:
             rules_chain.append(guild_rules)
 
         channels = []
-        if author.voice is not None:
-            channels.append(author.voice.channel)
+        try:
+            if author.voice is not None:
+                channels.append(author.voice.channel)
+        except AttributeError:
+            pass
         channels.append(ctx.channel)
         category = ctx.channel.category
         if category is not None:
             channels.append(category)
 
         # We want author roles sorted highest to lowest, and exclude the @everyone role
-        author_roles = reversed(author.roles[1:])
+        author_roles = []
+        try:
+            if len(author.roles) > 0:
+                author_roles = reversed(author.roles[1:])
+        except AttributeError:
+            pass
 
         model_chain = [author, *channels, *author_roles, guild]
 
