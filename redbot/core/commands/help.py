@@ -267,7 +267,7 @@ class RedHelpFormatter(HelpFormatterABC):
         sorted_iterable = []
         for cogname, cog in (*sorted(ctx.bot.cogs.items()), (None, None)):
             cm = await self.get_cog_help_mapping(ctx, cog, help_settings=help_settings)
-            if cm:
+            if cm and cogname != "Core":
                 sorted_iterable.append((cogname, cm))
         return sorted_iterable
 
@@ -611,8 +611,8 @@ class RedHelpFormatter(HelpFormatterABC):
             emb = {"embed": {"title": "", "description": ""}, "footer": {"text": ""}, "fields": []}
 
             emb["footer"]["text"] = tagline
-            if description:
-                emb["embed"]["title"] = f"*{description[:250]}*"
+            #if description:
+                #emb["embed"]["title"] = f"*{description[:250]}*"
 
             for cog_name, data in coms:
 
