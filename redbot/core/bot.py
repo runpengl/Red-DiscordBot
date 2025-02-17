@@ -1488,6 +1488,8 @@ class Red(
         prefix = await self.get_prefix(message)
         invoked_prefix = prefix
 
+        reference_message = await message.channel.fetch_message(message.reference.message_id) if message.reference else None
+
         if isinstance(prefix, str):
             if not view.skip_string(prefix):
                 return ctx
@@ -1498,6 +1500,14 @@ class Red(
                 if message.content.startswith(tuple(prefix)):
                     invoked_prefix = discord.utils.find(view.skip_string, prefix)
                 else:
+                    if message.author.id != self.user.id:
+                        if any([
+                            isinstance(message.channel, discord.channel.DMChannel),
+                            message.content.startswith(f'<@{self.user.id}>'),
+                            reference_message is not None and reference_message.author.id == self.user.id
+                        ]):
+                            ctx.prefix = ""
+                            ctx.command = self.all_commands.get("_dm_")
                     return ctx
 
             except TypeError:

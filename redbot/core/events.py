@@ -190,8 +190,8 @@ def init_events(bot, cli_flags):
 
         bot._color = discord.Colour(await bot._config.color())
         bot._red_ready.set()
-        if outdated_red_message:
-            await send_to_owners_with_prefix_replaced(bot, outdated_red_message)
+        #if outdated_red_message:
+            #await send_to_owners_with_prefix_replaced(bot, outdated_red_message)
 
     @bot.event
     async def on_command_completion(ctx: commands.Context):

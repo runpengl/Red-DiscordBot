@@ -871,7 +871,7 @@ class RedHelpFormatter(HelpFormatterABC):
             menus.start_adding_reactions(m, c.keys())
 
 
-@commands.command(name="help", hidden=True, i18n=_)
+@commands.command(name="red_help", hidden=True, i18n=_)
 async def red_help(ctx: Context, *, thing_to_get_help_for: str = None):
     """
     I need somebody
